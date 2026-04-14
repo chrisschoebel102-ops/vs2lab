@@ -7,6 +7,7 @@ import socket
 
 import const_cs
 from context import lab_logging
+import json
 
 lab_logging.setup(stream_level=logging.INFO)  # init loging channels for the lab
 
@@ -16,6 +17,7 @@ class Server:
     """ The server """
     _logger = logging.getLogger("vs2lab.lab1.clientserver.Server")
     _serving = True
+    _telefon_db = {f"Nutzer{i}": i for i in range(500)}
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,15 +34,30 @@ class Server:
                 # pylint: disable=unused-variable
                 (connection, address) = self.sock.accept()  # returns new socket and address of client
                 while True:  # forever
-                    data = connection.recv(1024)  # receive data from client
+                    data = connection.recv(1024).decode("ascii")  # receive data from client
                     if not data:
                         break  # stop if client stopped
-                    connection.send(data + "*".encode('ascii'))  # return sent data plus an "*"
+                    #-----------#
+                    if "GETALL" in data:
+                        value = json.dumps(self._telefon_db)
+                        connection.send(value.encode('ascii'))
+                        connection.send()
+                    elif "GET" in data:
+                        split = data.split(" ")
+                        name = split[1]
+                        value = self._telefon_db[name]
+                        connection.send(str(value).encode('ascii'))
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
         self.sock.close()
         self._logger.info("Server down.")
+
+    def get(self, name=""):
+        pass
+
+    def getall(self):
+        pass
 
 
 class Client:
@@ -61,6 +78,31 @@ class Client:
         self.sock.close()  # close the connection
         self.logger.info("Client down.")
         return msg_out
+
+    def get(self, name=""):
+        msg = f"GET {name}"
+        self.sock.send(msg.encode('ascii'))
+
+        data = self.sock.recv(1024)
+        ans = data.decode("ascii")
+        self.logger.info(f"Client received answer: {ans}")
+        return ans
+
+    def getall(self):
+        msg = f"GETALL"
+        self.sock.send(msg.encode('ascii'))
+
+        data = b""
+        while True:
+            d = self.sock.recv(1024)
+            if not d:
+                break
+            data += d
+
+        ans = data.decode("ascii")
+        ans_dict = json.loads(ans)
+        self.logger.info(f"Client received answer: {ans_dict}")
+        return ans_dict
 
     def close(self):
         """ Close socket """
