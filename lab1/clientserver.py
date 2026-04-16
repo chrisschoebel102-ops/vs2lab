@@ -39,9 +39,8 @@ class Server:
                         break  # stop if client stopped
                     #-----------#
                     if "GETALL" in data:
-                        value = json.dumps(self._telefon_db)
-                        connection.send(value.encode('ascii'))
-                        connection.send()
+                        value = json.dumps(self._telefon_db) + "\n"
+                        connection.sendall(value.encode('ascii'))
                     elif "GET" in data:
                         split = data.split(" ")
                         name = split[1]
@@ -93,7 +92,7 @@ class Client:
         self.sock.send(msg.encode('ascii'))
 
         data = b""
-        while True:
+        while b"\n" not in data:
             d = self.sock.recv(1024)
             if not d:
                 break
