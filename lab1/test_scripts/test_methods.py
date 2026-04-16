@@ -34,7 +34,11 @@ class TestGetGetall(unittest.TestCase):
         """Test simple call"""
         msg = self.client.getall()
         self.assertEqual(len(msg), 500)
-        pass
+
+    def test_srv_call(self):  # each test_* function is a test
+        """Test simple call"""
+        msg = self.client.call()
+        self.assertEqual(msg, "Hello, world")
 
     def tearDown(self):
         self.client.close()  # terminate client after each test

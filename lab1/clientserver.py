@@ -41,14 +41,21 @@ class Server:
                     if "GETALL" in data:
                         value = json.dumps(self._telefon_db) + "\n"
                         connection.sendall(value.encode('ascii'))
+                        self._logger.info(f"Server sent message: {value}")
                     elif "GET" in data:
                         split = data.split(" ")
                         name = split[1]
-                        value = self._telefon_db[name]
-                        connection.send(str(value).encode('ascii'))
+                        try:
+                            value = self._telefon_db[name]
+                            connection.send(str(value).encode('ascii'))
+                            self._logger.info(f"Server sent message: {value}")
+                        except KeyError:
+                            connection.send("User not found".encode('ascii'))
+                            self._logger.info("Server sent message: User not found")
                     elif "CALL" in data:
                         msg = data.replace("CALL", "").lstrip()
                         connection.send(msg.encode('ascii'))
+                        self._logger.info(f"Server sent message: {msg}")
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
@@ -76,8 +83,8 @@ class Client:
         self.sock.send(f"CALL {msg_in}".encode('ascii'))  # send encoded string as data
         data = self.sock.recv(1024)  # receive the response
         ans = data.decode('ascii')
-        self.logger.info(f"Client received answer: {msg_out}")  # print the result
-        return msg_out
+        self.logger.info(f"Client received answer: {ans}")  # print the result
+        return ans
 
     def get(self, name=""):
         msg = f"GET {name}"
