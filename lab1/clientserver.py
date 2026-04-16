@@ -46,6 +46,9 @@ class Server:
                         name = split[1]
                         value = self._telefon_db[name]
                         connection.send(str(value).encode('ascii'))
+                    elif "CALL" in data:
+                        msg = data.replace("CALL", "").lstrip()
+                        connection.send(msg.encode('ascii'))
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
@@ -70,11 +73,11 @@ class Client:
 
     def call(self, msg_in="Hello, world"):
         """ Call server """
-        self.sock.send(msg_in.encode('ascii'))  # send encoded string as data
+        self.sock.send(f"CALL {msg_in}".encode('ascii'))  # send encoded string as data
         data = self.sock.recv(1024)  # receive the response
         msg_out = data.decode('ascii')
         print(msg_out)  # print the result
-        self.sock.close()  # close the connection
+        self.sock.close()  # close the connection^
         self.logger.info("Client down.")
         return msg_out
 
