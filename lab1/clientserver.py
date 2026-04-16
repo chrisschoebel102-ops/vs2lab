@@ -75,10 +75,8 @@ class Client:
         """ Call server """
         self.sock.send(f"CALL {msg_in}".encode('ascii'))  # send encoded string as data
         data = self.sock.recv(1024)  # receive the response
-        msg_out = data.decode('ascii')
-        print(msg_out)  # print the result
-        self.sock.close()  # close the connection^
-        self.logger.info("Client down.")
+        ans = data.decode('ascii')
+        self.logger.info(f"Client received answer: {msg_out}")  # print the result
         return msg_out
 
     def get(self, name=""):
