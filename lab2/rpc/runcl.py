@@ -1,5 +1,6 @@
 import rpc
 import logging
+import time
 
 from context import lab_logging
 
@@ -11,6 +12,8 @@ cl.ready.wait()
 
 base_list = rpc.DBList({'foo'})
 cl.append_async('bar', base_list, cl.receive_msg)
-cl.do_something_else()
-cl.do_something_else()
+for i in range(15):
+    cl.do_something_else()
+    time.sleep(1)
+cl.stop()    
 

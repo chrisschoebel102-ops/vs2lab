@@ -32,11 +32,12 @@ class Client(threading.Thread):
 
     def do_something_else(self):
         print("main thread is doing something else")
-        pass
+        print(threading.get_ident())
 
     def append_async(self, data, db_list, callback):
         def run(data, db_list):
             ret = self.append(data, db_list)
+            print(threading.get_ident())
             callback(ret)
         thread = threading.Thread(target=run, args=(data, db_list))
         thread.start()
@@ -51,7 +52,9 @@ class Client(threading.Thread):
         assert isinstance(db_list, DBList)
         msglst = (constRPC.APPEND, data, db_list)  # message payload
         self.chan.send_to(self.server, msglst)  # send msg to server
-        msgrcv = self.chan.receive_from(self.server)  # wait for response
+        msgrcv = self.chan.receive_from(self.server)  # wait for first response
+        print(msgrcv[1])
+        msgrcv = self.chan.receive_from(self.server)  # wait for second response
         return(msgrcv[1])  # pass it to caller
 
 class Server:
@@ -74,7 +77,7 @@ class Server:
                 msgrpc = msgreq[1]  # fetch call & parameters
                 if constRPC.APPEND == msgrpc[0]:  # check what is being requested
                     #TODO funktioniert nicht so gut
-                    #self.chan.send_to({client}, f"request received")  # return response
+                    self.chan.send_to({str(client)}, "Request received")  # return response
                     result = self.append(msgrpc[1], msgrpc[2])  # do local call
                     time.sleep(10)
                     self.chan.send_to({client}, result)  # return response
