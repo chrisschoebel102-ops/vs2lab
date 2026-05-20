@@ -1,0 +1,7 @@
+Experiment 1:
+Zwei Farmer senden gleichzeitig Tasks an einen einzelnen Worker. 
+Der Worker verarbeitet Aufgaben von beiden Quellen nacheinander.
+
+Experiment 2:
+Ein Farmer verteilt seine Tasks automatisch auf zwei Worker. 
+Beide Worker bearbeiten unterschiedliche Aufgaben parallel.

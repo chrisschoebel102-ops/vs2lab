@@ -1,0 +1,7 @@
+Experiment 1:
+Der Server veröffentlicht regelmäßig Nachrichten an mehrere Clients gleichzeitig. 
+Beide Clients empfangen dieselben Updates und geben die Uhrzeit aus.
+
+Experiment 2:
+Der Server sendet weiterhin dieselben Updates an alle Subscriber. 
+Ein Client verarbeitet die Nachrichten als Uhrzeit, der andere als Datum.
