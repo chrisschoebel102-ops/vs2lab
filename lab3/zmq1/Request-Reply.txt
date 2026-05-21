@@ -1,0 +1,7 @@
+Experiment 1:
+Der Client wird vor dem Server gestartet und wartet trotzdem auf eine Verbindung. 
+Sobald der Server gestartet wird, wird die Nachricht automatisch übertragen. 
+
+Experiment 2:
+Zwei Clients senden gleichzeitig Anfragen an denselben Server. 
+Der Server verarbeitet die Requests nacheinander und sendet jedem Client die passende Antwort zurück.
