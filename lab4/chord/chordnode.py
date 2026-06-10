@@ -38,8 +38,6 @@ class ChordNode:
 
         self.logger = logging.getLogger("vs2lab.lab4.chordnode.ChordNode")
 
-        self.sender_dict = {}
-
     def in_between(self, key, lower_bound, upper_bound) -> bool:
         """
         Check if key is located in the name range between two given nodes considering the ring topology
@@ -154,24 +152,18 @@ class ChordNode:
 
                 # look up and return local successor 
                 req = int(request[1])
+                send = request[2]
                 next_id: int = self.local_successor_node(req)
-                if next_id != req:
-                    self.channel.send_to([str(next_id)], (constChord.LOOKUP_REQ, request[1]))
+                if self.node_id != req:
+                    self.channel.send_to([str(next_id)], (constChord.LOOKUP_REQ, request[1], send))  # forward request to next node
 
                 else:
-                    self.channel.send_to([sender], (constChord.LOOKUP_REP, [self.node_id]))
+                    self.channel.send_to([send], (constChord.LOOKUP_REP, [self.node_id]))
 
                 # Finally do a sanity check
                 #if not self.channel.exists(next_id):  # probe for existence
                 #    self.delete_node(next_id)  # purge disappeared node
             
-            if request[0] == constChord.LOOKUP_REP:
-                rep_sender = request[1]
-                
-                if isinstance(rep_sender, list):
-                    rep_sender.insert(0, self.node_id)
-                    self.channel.send_to([sender], (constChord.LOOKUP_REP, rep_sender))
-
             elif request[0] == constChord.JOIN:
                 # Join request (the node was already registered above)
                 self.logger.debug("Node {:04n} received JOIN from {:04n}."

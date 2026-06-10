@@ -26,6 +26,7 @@ class DummyChordClient:
     def __init__(self, channel):
         self.channel = channel
         self.node_id = channel.join('client')
+        self.logger = logging.getLogger("vs2lab.lab4.chordnode.Client")
 
     def enter(self):
         self.channel.bind(self.node_id)
@@ -33,9 +34,7 @@ class DummyChordClient:
     def run(self):
         random_member = random.choice(list(self.channel.channel.smembers('node'))).decode()
         random_lookup = random.choice(list(self.channel.channel.smembers('node'))).decode()
-        print(random_member)
-        print(random_lookup)
-        self.channel.send_to([random_member], (constChord.LOOKUP_REQ, random_lookup))
+        self.channel.send_to([random_member], (constChord.LOOKUP_REQ, random_lookup, str(self.node_id)))
 
         while True:
             message = self.channel.receive_from_any()  # Wait for any request
@@ -43,7 +42,8 @@ class DummyChordClient:
             request = message[1]  # And the actual request
 
             if request[0] == constChord.LOOKUP_REP:
-                print(f"received rep {request[1]}")
+                self.logger.info("Client {:04n} received LOOKUP_REP from {:04n}."
+                                  .format(int(self.node_id), int(sender)))
                 break
 
 
