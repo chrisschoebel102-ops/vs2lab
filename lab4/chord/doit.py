@@ -11,6 +11,8 @@ import logging
 import sys
 import multiprocessing as mp
 
+import random
+
 import chordnode as chord_node
 import constChord
 from context import lab_channel, lab_logging
@@ -29,7 +31,22 @@ class DummyChordClient:
         self.channel.bind(self.node_id)
 
     def run(self):
-        print("Implement me pls...")
+        random_member = random.choice(list(self.channel.channel.smembers('node'))).decode()
+        random_lookup = random.choice(list(self.channel.channel.smembers('node'))).decode()
+        print(random_member)
+        print(random_lookup)
+        self.channel.send_to([random_member], (constChord.LOOKUP_REQ, random_lookup))
+
+        while True:
+            message = self.channel.receive_from_any()  # Wait for any request
+            sender: str = message[0]  # Identify the sender
+            request = message[1]  # And the actual request
+
+            if request[0] == constChord.LOOKUP_REP:
+                print(f"received rep {request[1]}")
+                break
+
+
         self.channel.send_to(  # a final multicast
             {i.decode() for i in list(self.channel.channel.smembers('node'))},
             constChord.STOP)
