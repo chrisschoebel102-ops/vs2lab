@@ -46,6 +46,7 @@ class Process:
         self.peer_name = 'unassigned'  # The original peer name
         self.peer_type = 'unassigned'  # A flag indicating behavior pattern
         self.logger = logging.getLogger("vs2lab.lab5.mutex.process.Process")
+        self._allowed_from = []
 
     def __mapid(self, id='-1'):
         # format channel member address
@@ -117,6 +118,7 @@ class Process:
                 self.__allow_to_enter(msg[1])
             elif msg[2] == ALLOW:
                 self.queue.append(msg)  # Append an ALLOW
+                self._allowed_from.append(msg[1])
             elif msg[2] == RELEASE:
                 # assure release requester indeed has access (his ENTER is first in queue)
                 assert self.queue[0][1] == msg[1] and self.queue[0][2] == ENTER, 'State error: inconsistent remote RELEASE'
@@ -124,6 +126,13 @@ class Process:
 
             self.__cleanup_queue()  # Finally sort and cleanup the queue
         else:
+            if len(self._allowed_from) != 0:
+                not_allowed = list(set(self.other_processes) - set(self._allowed_from))
+                # remove crashed clocks and from queue
+                for n in not_allowed:
+                    self.other_processes.remove(n)
+                    self.queue = [msg for msg in self.queue if msg[1] != n]
+                    
             self.logger.info("{} timed out on RECEIVE. Local queue: {}".
                              format(self.__mapid(),
                                     list(map(lambda msg: (
@@ -159,6 +168,7 @@ class Process:
                 self.logger.debug("{} wants to ENTER CS at CLOCK {}."
                                   .format(self.__mapid(), self.clock))
 
+                self._allowed_from = []
                 self.__request_to_enter()
                 while not self.__allowed_to_enter():
                     self.__receive()
