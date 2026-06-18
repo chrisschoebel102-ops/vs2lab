@@ -1,8 +1,9 @@
 import logging
 import random
 import time
+import schedule
 
-from constMutex import ENTER, RELEASE, ALLOW, ACTIVE
+from constMutex import ENTER, HEARTBEAT, RELEASE, ALLOW, ACTIVE
 
 
 class Process:
@@ -46,7 +47,8 @@ class Process:
         self.peer_name = 'unassigned'  # The original peer name
         self.peer_type = 'unassigned'  # A flag indicating behavior pattern
         self.logger = logging.getLogger("vs2lab.lab5.mutex.process.Process")
-        self._allowed_from = []
+        self.last_heartbeat = {}
+        schedule.every(1).seconds.do(self.heartbeat)
 
     def __mapid(self, id='-1'):
         # format channel member address
@@ -103,6 +105,8 @@ class Process:
         if _receive:
             msg = _receive[1]
 
+            sender = msg[1]
+
             self.clock = max(self.clock, msg[0])  # Adjust clock value...
             self.clock = self.clock + 1  # ...and increment
 
@@ -110,29 +114,25 @@ class Process:
                 self.__mapid(),
                 "ENTER" if msg[2] == ENTER
                 else "ALLOW" if msg[2] == ALLOW
-                else "RELEASE", self.__mapid(msg[1])))
+                else "RELEASE" if msg[2] == RELEASE
+                else "HEARTBEAT", self.__mapid(msg[1])))
 
-            if msg[2] == ENTER:
+            if msg[2] == HEARTBEAT:
+                self.last_heartbeat[sender] = time.time()
+                return
+            elif msg[2] == ENTER:
                 self.queue.append(msg)  # Append an ENTER request
                 # and unconditionally allow (don't want to access CS oneself)
                 self.__allow_to_enter(msg[1])
             elif msg[2] == ALLOW:
                 self.queue.append(msg)  # Append an ALLOW
-                self._allowed_from.append(msg[1])
             elif msg[2] == RELEASE:
                 # assure release requester indeed has access (his ENTER is first in queue)
                 assert self.queue[0][1] == msg[1] and self.queue[0][2] == ENTER, 'State error: inconsistent remote RELEASE'
                 del (self.queue[0])  # Just remove first message
 
             self.__cleanup_queue()  # Finally sort and cleanup the queue
-        else:
-            if len(self._allowed_from) != 0:
-                not_allowed = list(set(self.other_processes) - set(self._allowed_from))
-                # remove crashed clocks and from queue
-                for n in not_allowed:
-                    self.other_processes.remove(n)
-                    self.queue = [msg for msg in self.queue if msg[1] != n]
-                    
+        else:      
             self.logger.info("{} timed out on RECEIVE. Local queue: {}".
                              format(self.__mapid(),
                                     list(map(lambda msg: (
@@ -155,9 +155,42 @@ class Process:
 
         self.logger.info("{} joined channel as {}.".format(
             peer_name, self.__mapid()))
+        self.last_heartbeat = {
+            proc: time.time()
+            for proc in self.other_processes
+        }
+        
+    def heartbeat(self):
+        self.clock = self.clock + 1  # Increment clock value
+        msg = (self.clock, self.process_id, HEARTBEAT)
+        self.channel.send_to(self.other_processes, msg)  # Send heartbeat   
+
+    def __check_failures(self):
+        now = time.time()
+        for proc in self.other_processes[:]:
+            last = self.last_heartbeat.get(proc, 0)
+            if now - last > 5:
+                self.logger.warning(
+                    f"{self.__mapid(proc)} suspected failed"
+                )
+                self.other_processes.remove(proc)
+                if proc in self.all_processes:
+                    self.all_processes.remove(proc)
+                self.queue = [
+                    msg for msg in self.queue
+                    if msg[1] != proc
+                ]                
+                
+                if self.queue and self.queue[0][1] == self.process_id:
+                    self.clock += 1
+                    msg = (self.clock, self.process_id, ALLOW)
+                    self.channel.send_to(self.other_processes, msg)
+
 
     def run(self):
         while True:
+            schedule.run_pending()
+            self.__check_failures()    
             # Enter the critical section if
             # 1) there are more than one process left and
             # 2) this peer has active behavior and
@@ -168,10 +201,11 @@ class Process:
                 self.logger.debug("{} wants to ENTER CS at CLOCK {}."
                                   .format(self.__mapid(), self.clock))
 
-                self._allowed_from = []
                 self.__request_to_enter()
                 while not self.__allowed_to_enter():
+                    schedule.run_pending()
                     self.__receive()
+                    self.__check_failures()
 
                 # Stay in CS for some time ...
                 sleep_time = random.randint(0, 2000)
