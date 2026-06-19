@@ -32,7 +32,7 @@ class Coordinator:
         self.stable_log.info(state)  # Write to recoverable persistant log file
         self.logger.info("Coordinator {} entered state {}."
                          .format(self.coordinator, state))
-        self.state = state
+        self.state = state  
 
     def init(self):
         self.channel.bind(self.coordinator)
