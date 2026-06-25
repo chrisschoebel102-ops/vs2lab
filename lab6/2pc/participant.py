@@ -147,15 +147,6 @@ class Participant:
                             decision = GLOBAL_ABORT
                         self._enter_state('COMMIT' if decision == GLOBAL_COMMIT else 'ABORT')
 
-                    while True:
-                        msg = self.channel.receive_from_any()
-                        # If someone reports a final decision,
-                        # we locally adjust to it
-                        if msg[1] in [
-                                GLOBAL_COMMIT, PREPARE_COMMIT, GLOBAL_ABORT, LOCAL_ABORT]:
-                            decision = msg[1]
-                            break
-
                 else:  # Coordinator came to a decision
                     decision = msg[1]
 
@@ -186,7 +177,7 @@ class Participant:
                     if decision == GLOBAL_COMMIT:
                         self._enter_state('COMMIT')
                     else:
-                        assert decision in [GLOBAL_ABORT, LOCAL_ABORT, PREPARE_COMMIT]
+                        assert decision in [GLOBAL_ABORT, LOCAL_ABORT]
                         self._enter_state('ABORT')
 
         # Help any other participant when coordinator crashed
