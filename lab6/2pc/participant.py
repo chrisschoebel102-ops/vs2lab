@@ -53,20 +53,7 @@ class Participant:
             self.participant, self.state))
 
         # Eigenen Zustand an alle senden
-        self.channel.send_to(others, (PEER_STATE, self.state))
-
-        # Auf Antworten warten
-        yet_to_receive = list(others)
-        peer_states = {}
-        while len(yet_to_receive) > 0:
-            msg = self.channel.receive_from(others, TIMEOUT * 3)
-            if not msg:
-                break
-            sender, content = msg[0], msg[1]
-            if isinstance(content, tuple) and content[0] == PEER_STATE:
-                peer_states[sender] = content[1]
-                if sender in yet_to_receive:
-                    yet_to_receive.remove(sender)
+        self.channel.send_to(others, (PEER_STATE, self.state))  
 
         # Entscheidung basierend auf eigenem Zustand
         if self.state == 'READY':
@@ -82,6 +69,15 @@ class Participant:
         else:
             self.channel.send_to(others, GLOBAL_ABORT if self.state == 'ABORT' else GLOBAL_COMMIT)
             return GLOBAL_ABORT if self.state == 'ABORT' else GLOBAL_COMMIT
+        
+    def calc_state_from_peer(self, peer_state):
+        state = self.state
+        if peer_state == 'PRECOMMIT' and state == 'READY':
+            self._enter_state('PRECOMMIT')
+        elif peer_state == 'COMMIT' and state == 'PRECOMMIT':
+            self._enter_state('COMMIT')
+        elif peer_state == 'WAIT' or state == 'ABORT':   
+            self._enter_state('READY')
 
     def init(self):
         self.channel.bind(self.participant)
@@ -117,6 +113,8 @@ class Participant:
                     else:
                         msg = self.channel.receive_from(self.all_participants, TIMEOUT * 3)
                         if msg and isinstance(msg[1], tuple) and msg[1][0] == PEER_STATE:
+                            peer_state = msg[1][1]
+                            self.calc_state_from_peer(peer_state)
                             self.channel.send_to({msg[0]}, (PEER_STATE, self.state))
                             msg = self.channel.receive_from(self.all_participants, TIMEOUT * 3)
                             decision = msg[1] if msg and msg[1] in [GLOBAL_COMMIT, GLOBAL_ABORT] else GLOBAL_ABORT
@@ -138,20 +136,22 @@ class Participant:
                             decision = self._run_as_new_coordinator()
                         else:
                             msg = self.channel.receive_from(self.all_participants, TIMEOUT * 3)
-                            if msg and isinstance(msg[1], tuple) and msg[1][0] == PEER_STATE:
-                                self.channel.send_to({msg[0]}, (PEER_STATE, self.state))
-                                msg = self.channel.receive_from(self.all_participants, TIMEOUT * 3)
-                                decision = msg[1] if msg and msg[1] in [GLOBAL_COMMIT, GLOBAL_ABORT] else GLOBAL_ABORT
-                            else:
-                                decision = GLOBAL_ABORT
-                            self._enter_state('COMMIT' if decision == GLOBAL_COMMIT else 'ABORT')
+                        if msg and isinstance(msg[1], tuple) and msg[1][0] == PEER_STATE:
+                            peer_state = msg[1][1]
+                            self.calc_state_from_peer(peer_state)
+                            self.channel.send_to({msg[0]}, (PEER_STATE, self.state))
+                            msg = self.channel.receive_from(self.all_participants, TIMEOUT * 3)
+                            decision = msg[1] if msg and msg[1] in [GLOBAL_COMMIT, GLOBAL_ABORT] else GLOBAL_ABORT
+                        else:
+                            decision = GLOBAL_ABORT
+                        
 
                     else:  # Coordinator came to a decision
                         decision = msg[1]
                     if decision == GLOBAL_COMMIT:
                         self._enter_state('COMMIT')
                     else:
-                        assert decision in [GLOBAL_ABORT, LOCAL_ABORT]
+                        assert decision in [GLOBAL_ABORT]
                         self._enter_state('ABORT')
 
         # Help any other participant when coordinator crashed

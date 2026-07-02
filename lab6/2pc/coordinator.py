@@ -86,15 +86,6 @@ class Coordinator:
                 self.channel.send_to(self.participants, GLOBAL_COMMIT)
                 return "Coordinator {} terminated in state COMMIT."\
                     .format(self.coordinator)
-            
-            elif (msg[1] == VOTE_ABORT):
-                reason = "local_abort from " + msg[0]
-                self._enter_state('ABORT')
-
-                # Inform all participants about global abort
-                self.channel.send_to(self.participants, GLOBAL_ABORT)
-                return "Coordinator {} terminated in state ABORT. Reason: {}."\
-                    .format(self.coordinator, reason)
             else:
                 assert msg[1] == READY_COMMIT
                 yet_to_receive.remove(msg[0])
